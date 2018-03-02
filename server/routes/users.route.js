@@ -1,74 +1,73 @@
 const 
     express = require('express'),
     router = express.Router(),
-    JobSeekerJoint = require('../joints/job-seekers.joints'),
+    Users = require('../joints/users.joints'),
     {assignStandardJWT, generateHash} = require('../utils/crypto.utils'),
+    bcrypt = require('bcrypt'), 
 
-    loginHandler = (req, res, next)=> {
-        // console.log('body: ',req.body);
-        
-        // should be handled with complete validators.
-        // validator for data varification should be a util (and tested).
-        // Try to apply NASA's rule of function (should not be longer than a page).
-
-        if(req.body.email && req.body.password){
-            const
-                email = req.body.email.trim(), 
-                password = req.body.password,
-                recordFindCb = (err, record)=>{
-                    if(err)
-                        res.status(501).send("Error occured on login attempt");
-                    if(!record)
-                        res.status(401).send("No Such Account Exists")
-                };
-                // req.body.email ? // check if email exists on http call. 
-
-                    JobSeekerJoint.checkIfUserExists(req.body.email) 
-                        .then(record => {
-                            
-                            '_id' in record.body ?   
-                                bcrypt.compare(password, record.body.personal_info.password)
-                                    .then( passwordMatched => {
-                                        if(passwordMatched) {
-                                            let {email, password, _id, contact} = record.body.personal_info;
-                                            // console.log(email, _id, contact);
-                                            assignStandardJWT({email, _id, contact})
-                                                .then(token => {
-                                                    res.cookie('YAPSESSION', token) ;
-                                                    res.status(202).send({token, body: record.body});
-                                                }).catch(err=>{
-                                                    console.log(err);
-                                                })
-                                        }
-                                        else 
-                                            res.status(401).send('Invalid Password');
-                                    })
-                                    .catch(err => {
-                                        res.status(500).send('Error at password match');
-                                    })
-                                : 
-                                res.status(401).send('No record for such email');
-                        })
-                        .catch(err=>{
-                            res.status(401).send('No record for such email');
-                        })
+    loginHandler = async (request, response) => {
+        const { email = null, password = null } = request.body;
+        if(!email || !password) {
+            resposne.status(401).send('Invalid login parameters');
+            return;
+        }
+        try {
+            const {status, body} = await Users.findByEmail(email);
+            if( status === 200 && body){
+                const 
+                    { _id, password: hash } = body,
+                    compared = await bcrypt.compare(password, hash);
+                
+                if(!compared){
+                    response.status(401).send('Password not matched');
+                    return; 
+                } 
+                const token = await assignStandardJWT({uid: _id, stamp: Date.now()})
+                response.cookie('USRSESSXX3', token);
+                response.status(status).send("Login Successful");
+                
             } else {
-                res.status(401).send('Email and Password Required');
+                response.status(401).send("Invalid account credentials");
             }
+
+        } catch( e ) {
+            console.error(`caught error: => ${e.message}`);
+        }
     },
 
+    /**
+     *  @author Saad Abbasi.
+     */
     registrationHandler = async (req, res, next)=> {
         let 
-            {fullname = null, email = null, contact = null, password = null} = req.body;
-            try{
-                const hash = await generateHash(password) // return hash with 10 round salt added
-                const jobSeekerModel = {
-                    fullname, email, contact, password: hash
-                }
-                const {status, body} = await JobSeekerJoint.saveJobSeeker(jobSeekerModel);
-                res.status(status).send(body);
+            reject = (status, message)=> {
+                res.status(403).send(message);
+                return;                
+            },
+            {email = null, username = null, password = null} = req.body;
+            
+            if(!email || !username || !password){
+                reject(403, 'Please provide complete details');
+            }
+            
+            if( ! /\w+@\w+\.\w{2,4}/i.test(email) ){
+                reject(403, 'Please provide valid email');
+            }
 
-            } catch( e ){
+            try{
+                const { body: _user } = await Users.findByEmail(email);    
+                if(_user && _user._id){
+                    reject(401, 'Email already exists');
+                }
+                const 
+                    hash = await generateHash(password),
+                    user = {
+                        email, username, password: hash
+                    },
+                    {status, body}= await Users.save(user);
+                    res.status(status==200 ? 201 : 500).send(body);
+
+                } catch( e ){
                 console.error(e);
                 const { status = 500, body = "Some error at registring users" } = e;
                 res.status(status).send(body);

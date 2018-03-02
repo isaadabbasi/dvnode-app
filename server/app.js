@@ -6,16 +6,14 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
 const
-  employerRoute = require('./routes/employer/employers.route'),
   index = require('./routes/index'),
   users = require('./routes/users.route'),
-  jobsRoute = require('./routes/jobs.route');
 
 //import utilities.
-var cryptoUtil = require('./utils/crypto.utils');
+  cryptoUtil = require('./utils/crypto.utils'),
 //database connection
-const db_connection = require('./connection/mongo_connection');
-db_connection.connect();
+  db_connection = require('./connection/mongo_connection');
+  db_connection.connect();
 
 var app = express();
 
@@ -33,9 +31,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // SETTING UP ROUTES.
 app.use('/', index);
-app.use('/employer', employerRoute);
-// app.use('/users', users);
-app.use('/jobs', jobsRoute);
+app.use('/users', users);
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');

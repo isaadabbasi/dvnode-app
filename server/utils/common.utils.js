@@ -48,7 +48,6 @@ class CommonUtils {
      */
     commonCallback (resolve, reject, { errmsg = null, successmsg = null }={}){
         return (err, body)=>{  
-            console.log(err, body);
             err ? 
                 reject({ status: 500, body: errmsg || err.message }) : 
                 resolve({status: 200, body: successmsg || body });

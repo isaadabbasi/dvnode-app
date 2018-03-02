@@ -1,8 +1,8 @@
 const 
     mongoose = require('mongoose'),
-    host = process.env.HOST,
-    port = process.env.DB_PORT,
-    schema = process.env.SCHEMA,
+    host = process.env.HOST || '127.0.0.1',
+    port = process.env.DB_PORT || 27017,
+    schema = process.env.SCHEMA || 'dvna',
     connection_url = `mongodb://${host}:${port}/${schema}`,
     options = {
         useMongoClient: true
